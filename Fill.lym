@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<klayout-macro>
+ <description/>
+ <version/>
+ <category>pymacros</category>
+ <prolog/>
+ <epilog/>
+ <doc/>
+ <autorun>false</autorun>
+ <autorun-early>false</autorun-early>
+ <priority>0</priority>
+ <shortcut/>
+ <show-in-menu>false</show-in-menu>
+ <group-name/>
+ <menu-path/>
+ <interpreter>python</interpreter>
+ <dsl-interpreter-name/>
+ <text>import pya
+
+view = pya.LayoutView.current()
+layout = view.active_cellview().layout()
+cell = layout.cell("Toedi_1")
+
+layout.delete_layer(Layer2) #the first time you run this code you have to comment this, after that this line is necesarry 
+
+Layer3 = layout.layer(8, 0) #layer of the shapes you want to avoid
+Layer0 = layout.layer(1, 0) #layer of the region you want to fill
+
+
+#Creating region l1 with all the objects in the layout (Paths, Boxes, ...)
+#Substracting region l1 to l0 to get the desired area to fill (region "result")
+l0 = pya.Region()
+#l0.insert(pya.Box(-2500, -2500, 2500, 2500))
+iter = pya.RecursiveShapeIterator.new(layout, cell, [Layer0])
+l0.insert(iter)
+
+l1 = pya.Region()
+iter = pya.RecursiveShapeIterator.new(layout, cell, [Layer3])
+l1.insert(iter)
+
+Layer3 = layout.layer(3, 0)  
+Layer1 = layout.layer(2, 0)
+output = layout.layer(5, 0)
+  
+result = l0 - l1
+areaResult = result.area()
+
+#top.shapes(Layer0).insert(pya.Box(-2500, -2500, 2500, 2500))
+#top.shapes(output).insert(result)
+
+empty_space = (result.area() / l0.area()) * 100
+
+###Parameters for the fill_region() method 
+input_cell = layout.create_cell("input_cell")
+#Shape that will fill the region
+input_bbox = pya.Box(0, 0, 5000, 5000)
+Layer2 = layout.layer(6, 0)
+#insert something to the filling cell. To have some distance between cells, the Box should be smaller than input_bbox
+box_in_cell = pya.Box(1000, 1000, 3000, 3000)
+input_cell.shapes(Layer2).insert(box_in_cell)
+#region should be the same size as "l0"
+region = result
+
+#Desired empty space in the region "l0" given in percentage        
+empty_space_threshold_lower = 50
+empty_space_threshold_upper = 70
+
+#Every time empty_space is outside the empty_space_thresholds, the input_bbox is going to grow (or shrink) by "s" 
+s = 20
+
+while True:       
+    tot_area_boxes = 0
+    #Finds all the input_bboxes that are added with the fill_region method. The first iteration does not have any boxes
+    iter = pya.RecursiveShapeIterator.new(layout, cell, [Layer2])
+       
+    while not iter.at_end():
+        current_box = iter.shape()
+        tot_area_boxes += current_box.area()
+        iter.next()
+     
+    iter.reset()
+
+    empty_space = ((areaResult-tot_area_boxes) / l0.area()) * 100
+    
+    print(f"Empty space: {empty_space}%")
+    if empty_space &gt;= empty_space_threshold_lower and empty_space &lt;= empty_space_threshold_upper:
+        print(f"Desired empty space achieved: {empty_space}%")
+        break
+    else:
+        #Changing the size of the filling box
+        if empty_space &lt; empty_space_threshold_lower:
+            #input_bbox = pya.Box(0, 0, 400 - s, 400 - s)
+            box_in_cell = pya.Box(1000, 1000, 3000 - s, 3000 - s)
+        else:
+            #input_bbox = pya.Box(0, 0, 400 + s, 400 + s)  
+            box_in_cell = pya.Box(1000, 1000, 3000 + s, 3000 + s)
+    
+    #Clearing all the added boxes to use the fill_region method again 
+    input_cell.clear(Layer2)
+    
+    s += 200   
+    
+    #This is necessary because all the previous added boxes were cleared. This time input_bbox will have a different size
+    Layer2 = layout.layer(6, 0)
+    input_cell.shapes(Layer2).insert(box_in_cell)
+    
+    print(f"box_in_cell values: {box_in_cell.left, box_in_cell.bottom, box_in_cell.right, box_in_cell.top}")
+    print(f"input_bbox values: {input_bbox.left, input_bbox.bottom, input_bbox.right, input_bbox.top}")
+    
+    #fill_region method. Fills a region with an array of cells. For more information: https://www.klayout.de/doc/code/class_Cell.html#method72
+    cell.fill_region(result, input_cell.cell_index(), input_bbox, pya.Vector(0, 0), result, pya.Point(0, 0), None)
+    
+
+  
+# Update the view to reflect the changes
+view.update_content()
+
+# Optionally, zoom to fit the entire layout
+view.zoom_fit()
+</text>
+</klayout-macro>
