@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<klayout-macro>
+ <description>AutoPath</description>
+ <version/>
+ <category>pymacros</category>
+ <prolog/>
+ <epilog/>
+ <doc/>
+ <autorun>false</autorun>
+ <autorun-early>false</autorun-early>
+ <priority>0</priority>
+ <shortcut/>
+ <show-in-menu>true</show-in-menu>
+ <group-name/>
+ <menu-path>@toolbar.end</menu-path>
+ <interpreter>python</interpreter>
+ <dsl-interpreter-name/>
+ <text>import pya
+
+
+class PathCalculator(pya.QDialog):
+  
+    
+  def button1_clicked(self, checked):
+    
+    view = pya.Application.instance().main_window().current_view()
+    layout = view.cellview(0).layout()
+    cell = view.cellview(0).cell
+    dbu = layout.dbu
+    reg = pya.Region()
+    reg2 = pya.Region()
+    width = 10
+    layer_out = layout.layer(100, 0)
+    layout.delete_layer(layer_out)
+    
+    self.pts = []
+    
+    self.pts.append(pya.DPoint(float(self.start_point_x.text), float(self.start_point_y.text)))   
+    
+    if len(self.cps) != 0:
+       
+      self.pts = self.pts + self.cps
+      self.pts.append(pya.DPoint(float(self.end_point_x.text), float(self.cp_y.text)))
+      
+    else: 
+      self.pts.append(pya.DPoint(float(self.end_point_x.text), float(self.start_point_y.text)))
+    
+    self.pts.append(pya.DPoint(float(self.end_point_x.text), float(self.end_point_y.text)))  
+    path = pya.DPath(self.pts, width)
+    
+    layer_out = layout.layer(100, 0)
+    
+    cell.shapes(layer_out).insert(path)
+    
+    view.update_content()
+    #view.zoom_fit()
+    
+    layer_input = self.layer_input.selectedItems()
+    layer_input = [j.text for j in layer_input]
+    
+    layer_input2 = self.layer_input2.selectedItems()
+    layer_input2 = [j.text for j in layer_input2]
+
+    
+    layer_indexes = layout.layer_indexes()
+    layer_info = layout.layer_infos()
+
+    for idx,lyr in enumerate(layout.layer_infos()):
+      if str(lyr) in layer_input:
+        reg.insert(layout.begin_shapes(cell,layer_indexes[idx]))
+    
+    for idx,lyr in enumerate(layout.layer_infos()):
+      if str(lyr) in layer_input2:
+        reg2.insert(layout.begin_shapes(cell,layer_indexes[idx]))
+    
+    reg3 = pya.Region(cell.begin_shapes_rec(layer_out))
+
+    self.area1.setText("Your strating point is: "+self.start_point_x.text+" , "+self.start_point_y.text)
+    self.area2.setText("Your end point is: "+self.end_point_x.text+" , "+self.end_point_y.text)
+    
+    for idx, lyr in enumerate(layer_info):
+        if str(lyr) in layer_input:
+            selected_layer = layer_indexes[idx]
+            break
+            
+    for idx, lyr in enumerate(layer_info):
+        if str(lyr) in layer_input2:
+            selected_layer2 = layer_indexes[idx]
+            break
+            
+    
+    mw = pya.Application.instance().main_window()
+    mw.current_view().add_missing_layers()
+    
+    
+    reg_3_2 = pya.Box((reg3 &amp; reg2).bbox())
+    
+    view.update_content() 
+    
+    if self.new_start_x == False and self.new_start_y == False:
+      distances = {
+        pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) : (pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) - pya.DPoint(float(self.start_point_x.text), float(self.start_point_y.text))).length(),
+        pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) : (pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) - pya.DPoint(float(self.start_point_x.text), float(self.start_point_y.text))).length(), 
+        pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu) : (pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu) - pya.DPoint(float(self.start_point_x.text), float(self.start_point_y.text))).length(), 
+        pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) : (pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) - pya.DPoint(float(self.start_point_x.text), float(self.start_point_y.text))).length()
+      }
+    else:  
+      distances = {
+        pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) : (pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) - pya.DPoint(float(self.new_start_x), float(self.new_start_y))).length(),
+        pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) : (pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) - pya.DPoint(float(self.new_start_x), float(self.new_start_y))).length(), 
+        pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu) : (pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu) - pya.DPoint(float(self.new_start_x), float(self.new_start_y))).length(), 
+        pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) : (pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) - pya.DPoint(float(self.new_start_x), float(self.new_start_y))).length()
+      }
+    
+    
+    #pya.MainWindow.instance().message("Recomended control point at: " + str(min(distances, key=distances.get)), 1000000)  
+    
+    box_reg2 = reg2.interacting(reg3).bbox()
+    
+    #box = pya.Box(box_reg2)
+    #layout.top_cell().shapes(selected_layer).insert(box)
+    
+    sorted_dis = dict(sorted(distances.items(), key=lambda item: item[1]))
+    
+    s = width #distance from the box
+       
+    if self.new_start_x == False and self.new_start_y == False:   
+      
+      if (list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu)):
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(float(self.start_point_x.text), box_reg2.top *dbu +s))+" , "+str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)) + " , " + str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.bottom *dbu -s)))          
+      elif (list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu)):
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(box_reg2.left *dbu -s, float(self.start_point_y.text)))+" , "+str(pya.DPoint(box_reg2.left *dbu -s, box_reg2.top *dbu +s)) + " , " + str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)))          
+      elif (list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)):  
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(box_reg2.right *dbu +s, float(self.start_point_y.text)))+" , "+str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)) + " , " + str(pya.DPoint(box_reg2.left *dbu -s, box_reg2.top *dbu +s)))       
+      elif (list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)):
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(float(self.start_point_x.text), box_reg2.bottom *dbu -s))+" , "+str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.bottom *dbu -s)) + " , " + str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)))        
+    
+    else: 
+     
+      if (list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu)):
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(self.new_start_x, box_reg2.top *dbu +s))+" , "+str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)) + " , " + str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.bottom *dbu -s)))          
+      elif (list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.top *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu)):
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(box_reg2.left *dbu -s, self.new_start_y))+" , "+str(pya.DPoint(box_reg2.left *dbu -s, box_reg2.top *dbu +s)) + " , " + str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)))          
+      elif (list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.top *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)):
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(box_reg2.right *dbu +s, self.new_start_y))+" , "+str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)) + " , " + str(pya.DPoint(box_reg2.left *dbu -s, box_reg2.top *dbu +s)))       
+      elif (list(sorted_dis)[0] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) and list(sorted_dis)[1] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)) or (list(sorted_dis)[1] == pya.DPoint(reg_3_2.left *dbu, reg_3_2.bottom *dbu) and list(sorted_dis)[0] == pya.DPoint(reg_3_2.right *dbu, reg_3_2.bottom *dbu)):
+        self.area3.setText("Recommended control points: "+str(pya.DPoint(self.new_start_x, box_reg2.bottom *dbu -s))+" , "+str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.bottom *dbu -s)) + " , " + str(pya.DPoint(box_reg2.right *dbu +s, box_reg2.top *dbu +s)))        
+    
+    
+    if (reg &amp; reg2).area() == 0 and (reg &amp; reg3).area() == 0 and (reg2 &amp; reg3).area() == 0:
+      print("todo bien")
+      layout.delete_layer(layer_out)
+      cell.shapes(selected_layer).insert(path)
+      self.area3.setText("Recommended control points: None")
+      view.update_content()
+      #view.zoom_fit()
+      
+    else:
+      print("path intersects") 
+    
+    
+    self.new_start_x = float(self.cp_x.text)
+    self.new_start_y = float(self.cp_y.text)
+    
+    
+  def button2_clicked(self, checked):
+  
+    view = pya.Application.instance().main_window().current_view()
+    layout = view.cellview(0).layout()
+    cell = view.cellview(0).cell
+    
+    if self.new_start_x == False and self.new_start_y == False:
+      self.cps.append(pya.DPoint(float(self.cp_x.text), float(self.start_point_y.text)))
+      print("hola")
+      
+    else:
+      self.cps.append(pya.DPoint(float(self.cp_x.text), float(self.new_start_y)))
+      
+    self.cps.append(pya.DPoint(float(self.cp_x.text), float(self.cp_y.text)))
+    
+    #self.cp_x.clear()
+    #self.cp_y.clear()
+    
+    self.cp.setText("Last control point at: "+self.cp_x.text+" , "+self.cp_y.text)
+    
+    self.new_start_x = float(self.cp_x.text)
+    self.new_start_y = float(self.cp_y.text)
+    
+
+  def __init__(self, parent = None):
+    """ Dialog constructor """
+    
+    super(PathCalculator, self).__init__()
+    
+    self.cps = []
+    
+    self.new_start_x = False
+    self.new_start_y = False
+    
+    self.setWindowTitle("Path Intersection Calculator")
+
+    self.resize(400, 520)
+
+    qt_layout = pya.QVBoxLayout(self)
+    self.setLayout(qt_layout)
+    
+    self.layer_label = pya.QLabel("Layer of the path", self)
+    qt_layout.addWidget(self.layer_label)
+    
+    view = pya.Application.instance().main_window().current_view()
+    layout = view.cellview(0).layout()
+    layers = layout.layer_infos()
+    layers = [str(j) for j in layers]
+    
+    mw = pya.Application.instance().main_window()
+    mw.current_view().add_missing_layers()
+    
+    self.layer_input = pya.QListWidget(self)
+    self.layer_input.setSelectionMode(pya.QAbstractItemView.ExtendedSelection)
+    self.layer_input.addItems(layers)
+    qt_layout.addWidget(self.layer_input)
+    
+    self.layer_label = pya.QLabel("Layer to aviod", self)
+    qt_layout.addWidget(self.layer_label)
+    
+    self.layer_input2 = pya.QListWidget(self)
+    self.layer_input2.setSelectionMode(pya.QAbstractItemView.ExtendedSelection)
+    self.layer_input2.addItems(layers)
+    qt_layout.addWidget(self.layer_input2)
+
+    self.area1 = pya.QLabel("Start point x and y:", self)
+    qt_layout.addWidget(self.area1)
+    self.start_point_x = pya.QLineEdit('',self)
+    qt_layout.addWidget(self.start_point_x) 
+    self.start_point_y = pya.QLineEdit('',self)
+    qt_layout.addWidget(self.start_point_y)
+    
+    self.area2 = pya.QLabel("End point x and y:", self)
+    qt_layout.addWidget(self.area2)
+    self.end_point_x = pya.QLineEdit('',self)
+    qt_layout.addWidget(self.end_point_x) 
+    self.end_point_y = pya.QLineEdit('',self)
+    qt_layout.addWidget(self.end_point_y)
+    
+    button1 = pya.QPushButton('Calculate path', self)
+    button1.setFont(pya.QFont('Times', 18, pya.QFont.Bold))
+    qt_layout.addWidget(button1)
+
+    button1.clicked(self.button1_clicked)
+    
+    self.cp = pya.QLabel("Choose control points x and y", self)
+    qt_layout.addWidget(self.cp)
+    
+    self.cp_x = pya.QLineEdit('',self)
+    qt_layout.addWidget(self.cp_x) 
+    self.cp_y = pya.QLineEdit('',self)
+    qt_layout.addWidget(self.cp_y)
+    
+    button2 = pya.QPushButton('Add Control Point', self)
+    button2.setFont(pya.QFont('Times', 18, pya.QFont.Bold))
+    qt_layout.addWidget(button2)
+    
+    button2.clicked(self.button2_clicked)
+    
+    self.area3 = pya.QLabel("Recommended control points: None", self)
+    qt_layout.addWidget(self.area3)
+
+
+dialog = PathCalculator(pya.Application.instance().main_window())
+dialog.show()
+
+
+
+
+    
+</text>
+</klayout-macro>
